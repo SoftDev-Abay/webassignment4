@@ -86,7 +86,7 @@ app.delete("/users/:id", async (req, res) => {
     );
     res.json(deletUser.rows[0]);
   } catch (error) {
-    console.log(error.message);
+    console.error(error.message);
   }
 });
 
@@ -105,13 +105,20 @@ app.get("/images/:imageName", (req, res) => {
 // create a product
 app.post("/products", upload.single("product_image"), async (req, res) => {
   try {
-    const { product_name, product_price, product_description } = req.body;
+    const { product_name, product_price, product_description, category } =
+      req.body;
 
     const product_image = req.file.filename;
 
     const newProduct = await pool.query(
-      "INSERT INTO products(product_name,  description, price, img_url) VALUES ($1,$2,$3,$4) RETURNING *",
-      [product_name, product_description, product_price, product_image]
+      "INSERT INTO products(product_name,  description, price, img_url, category) VALUES ($1,$2,$3,$4,$5) RETURNING *",
+      [
+        product_name,
+        product_description,
+        product_price,
+        product_image,
+        category,
+      ]
     );
     res.json(newProduct.rows[0]);
   } catch (error) {
@@ -165,16 +172,33 @@ app.delete("/products/:id", async (req, res) => {
 });
 
 // update a product
-app.put("/products/:id", async (req, res) => {
+app.put("/products/:id", upload.single("product_image"), async (req, res) => {
   try {
     const { id } = req.params;
-    const { product_name, product_price, product_description, product_image } =
+    const { product_name, product_price, product_description, category } =
       req.body;
-    const updateProduct = await pool.query(
-      "UPDATE products SET product_name = $1, description = $2, price = $3, img_url = $4 WHERE product_id = $5 RETURNING *",
-      [product_name, product_description, product_price, product_image, id]
-    );
-    res.json(updateProduct.rows[0]);
+
+    if (req.file) {
+      const product_image = req.file.filename;
+      const updateProduct = await pool.query(
+        "UPDATE products SET product_name = $1, description = $2, price = $3, img_url = $4, category = $5 WHERE product_id = $6 RETURNING *",
+        [
+          product_name,
+          product_description,
+          product_price,
+          product_image,
+          category,
+          id,
+        ]
+      );
+      res.json(updateProduct.rows[0]);
+    } else {
+      const updateProduct = await pool.query(
+        "UPDATE products SET product_name = $1, description = $2, price = $3, category = $4 WHERE product_id = $5 RETURNING *",
+        [product_name, product_description, product_price, category, id]
+      );
+      res.json(updateProduct.rows[0]);
+    }
   } catch (error) {
     console.error(error.message);
   }
